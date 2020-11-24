@@ -1,0 +1,190 @@
+#!/usr/bin/bash
+#Brett Gagnon
+#Shell Scripting Assignment 3
+#3/17/2020
+
+USAGE="$0 -f directory
+$0 -d directory
+$0 -d -f directory
+-f rename files
+-d rename directories
+"
+usage ()
+	{
+	echo "$USAGE"
+	exit 1
+	}
+
+pathname ()
+	{
+	echo "${1%/*}"
+	}
+
+basename ()
+	{
+	echo "${1##*/}"
+	}
+
+find_dirs ()
+	{
+	find "$1" -depth -type d -name '* *' -print
+	}
+
+find_files ()
+	{
+	find "$1" -depth -type f -name '* *' -print
+	}
+
+# the student must implement this function to my_rename
+# $1 to $2
+# The following error checking must happen:
+# 1. check if the directory where $1 resided is writeable,
+# if not then report an error
+# 2. check if "$2" exists -if it does report and error and don't do the mv command
+# 3. check the status of the mv command and report any errors
+
+my_rename()
+	{
+	Arg1=("$1")
+	Arg2="$2"
+
+	if [ ! -w "${Arg1[@]}" ]
+		then
+		echo "The Directory or File $1 cannot be written"
+		exit 1
+	fi
+
+	if [ -d "$Arg2" -o -f "$Arg2" ]
+		then
+		echo "The Directory or File already exists - $Arg2 "
+		exit 1
+	fi
+
+	mv "$Arg1" "$Arg2"
+
+	Status=$?
+
+	if [ $Status -ne 0 ]
+		then
+		echo "Error in moving the file or directory"
+		echo "From directory : $Arg1"
+		echo "To directory : $Arg2"
+	fi
+	}
+
+# The student must implement this function
+# to actually call the my_rename funtion to
+# change the name of the directory from having spaces to
+# changing all of the spaces to -'s
+# if the name were "a b", the new name would be a-b
+# if the name were "a b" the new name would be a----b
+
+fix_dirs ()
+	{
+	find_dirs "$1"|while read Old_dir 
+	do
+		Check_dir=$(echo "$Old_dir" | grep -c "/")
+
+		if [ $Check_dir -ne 0 ] 
+		then
+			New_dir=$(pathname "$Old_dir")/$(basename "$Old_dir" | tr " " "-")
+		else
+			New_dir=$(echo "$Old_dir" | tr " " "-")
+		fi
+
+		my_rename "${Old_dir}" "${New_dir}"
+
+	done
+	}
+
+# The student must implement this function
+# to actually call the my_rename funtion to
+# change the name of the file from having spaces to
+# changing all of the spaces to -'s
+# if the name were "a b", the new name would be a-b
+# if the name were "a b" the new name would be a----b
+
+fix_files ()
+	{
+	find_files "$1"|while read Old_file  
+	do
+		New_file=$(pathname "$Old_file")/$(basename "$Old_file" | tr " " "-")
+		my_rename "${Old_file}" "${New_file}"
+	done
+	}
+
+WFILE=
+WDIR=
+DIR=
+
+if [ "$#" -eq 0 ]
+	then
+	usage
+fi
+
+while [ $# -gt 0 ]
+	do
+		case $1 in
+		-d)
+			WDIR=1
+			;;
+		-f)
+			WFILE=1
+			;;
+		-*)
+			usage
+			;;
+		*)
+			if [ -d "$1" ]
+				then
+				DIR="$1"
+			else
+				echo ./"$1 does not exist ..."
+				exit 1
+			fi
+			;;
+		esac
+		shift
+	done
+
+# If the directory was not specified, the script should print a message and exit
+if [ -z "$DIR" ]
+	then
+	echo "Error: no directory entered"
+	exit 1
+fi
+
+# If the Directory specified is the current directory, the script should print a error message and exit
+if [ ${PWD} == "$DIR" ]
+	then
+	echo "Error: Cannot operate on the current directory"
+	exit 1
+fi
+
+# If the directory specified is . or .. the script should print an error message and exit
+if [ "$DIR" == "." -o "$DIR" == ".." ]
+	then
+	echo "Error: directory specified is . or .."
+	exit 1
+fi
+
+# If both -f and -d are not specified, the script should print a message and exit
+if [[ "$WDIR" == "" && "$WFILE" == "" ]]
+	then
+	usage
+	exit 1
+fi
+
+if [ "$WDIR" -a "$WFILE" ]
+	then
+	fix_files "$DIR"
+	fix_dirs "$DIR"
+
+elif [ "$WDIR" ]
+	then
+	fix_dirs "$DIR"
+
+elif [ "$WFILE" ]
+	then
+	fix_files "$DIR"
+fi
